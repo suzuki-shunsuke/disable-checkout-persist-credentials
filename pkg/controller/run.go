@@ -21,6 +21,17 @@ func (c *Controller) Run(logE *logrus.Entry, input *Input) error {
 			return fmt.Errorf("find workflow files: %w", err)
 		}
 		files = a
+	} else {
+		for _, file := range files {
+			content, err := afero.ReadFile(c.fs, file)
+			if err != nil {
+				return fmt.Errorf("read a file: %w", err)
+			}
+			wf := &Workflow{}
+			if err := yaml.Unmarshal(content, wf); err != nil {
+				return fmt.Errorf("unmarshal a workflow file: %w", err)
+			}
+		}
 	}
 	for _, file := range files {
 		logE := logE.WithField("file", file)
@@ -43,6 +54,25 @@ func (c *Controller) findWorkflowFiles() ([]string, error) {
 	return files, nil
 }
 
+func (c *Controller) handleAction(logE *logrus.Entry, file string, content []byte, wf *Workflow) error {
+	f, err := wf.Runs.Validate()
+	if err != nil {
+		return err
+	}
+	if f {
+		return nil
+	}
+	logE.Info("change the composite action")
+	newContent, err := parseActionAST(logE, content)
+	if err != nil {
+		return err
+	}
+	if newContent == string(content) {
+		return nil
+	}
+	return c.edit(file, newContent)
+}
+
 func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
 	content, err := afero.ReadFile(c.fs, file)
 	if err != nil {
@@ -53,11 +83,14 @@ func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
 	if err := yaml.Unmarshal(content, wf); err != nil {
 		return fmt.Errorf("unmarshal a workflow file: %w", err)
 	}
+	if wf.Runs != nil {
+		return c.handleAction(logE, file, content, wf)
+	}
 	jobNames, err := wf.Validate()
 	if err != nil {
 		return fmt.Errorf("validate a workflow: %w", err)
 	}
-	if len(jobNames) == 0 {
+	if wf.Runs == nil && len(jobNames) == 0 {
 		return nil
 	}
 	logE.Info("change the workflow")
@@ -68,11 +101,15 @@ func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
 	if newContent == string(content) {
 		return nil
 	}
+	return c.edit(file, newContent)
+}
+
+func (c *Controller) edit(file, content string) error {
 	stat, err := c.fs.Stat(file)
 	if err != nil {
 		return fmt.Errorf("get configuration file stat: %w", err)
 	}
-	if err := afero.WriteFile(c.fs, file, []byte(newContent), stat.Mode()); err != nil {
+	if err := afero.WriteFile(c.fs, file, []byte(content), stat.Mode()); err != nil {
 		return fmt.Errorf("write the configuration file: %w", err)
 	}
 	return nil
@@ -80,6 +117,11 @@ func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
 
 type Workflow struct {
 	Jobs map[string]*Job
+	Runs *Runs
+}
+
+type Runs struct {
+	Steps []*Step
 }
 
 type Job struct {
@@ -108,6 +150,20 @@ func (w *Workflow) Validate() (map[string]struct{}, error) {
 func (j *Job) Validate() (bool, error) {
 	valid := true
 	for _, step := range j.Steps {
+		f, err := step.Validate()
+		if err != nil {
+			return false, fmt.Errorf("validate a step: %w", err)
+		}
+		if !f {
+			valid = false
+		}
+	}
+	return valid, nil
+}
+
+func (r *Runs) Validate() (bool, error) {
+	valid := true
+	for _, step := range r.Steps {
 		f, err := step.Validate()
 		if err != nil {
 			return false, fmt.Errorf("validate a step: %w", err)
