@@ -1,5 +1,7 @@
 # disable-checkout-persist-credentials
 
+[![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/suzuki-shunsuke/disable-checkout-persist-credentials/main/LICENSE) | [Install](INSTALL.md)
+
 CLI to disable [actions/checkout](https://github.com/actions/checkout)'s persist-credentials.
 
 To modify GitHub Actions workflows, you can run:
