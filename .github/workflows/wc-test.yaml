@@ -29,3 +29,7 @@ jobs:
       - run: go install ./cmd/disable-checkout-persist-credentials
       - run: disable-checkout-persist-credentials --version
       - run: disable-checkout-persist-credentials --help
+      - run: disable-checkout-persist-credentials
+      - run: git diff --quiet
+      - run: disable-checkout-persist-credentials test/test.yaml
+      - run: diff test/test.yaml test/test.yaml.expected

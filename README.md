@@ -34,7 +34,7 @@ disable-checkout-persist-credentials [<workflow file> ...]
 
 By default, `\.github/workflows/.*\.ya?ml` is changed.
 
-## Known Issues
+## :warning: Known Issues
 
 1. The number of spaces before `#` comment is changed
 
@@ -50,7 +50,26 @@ After
 timeout-minutes: 30 # test
 ```
 
-2. `persistent-credentials: true` isn't fixed
+2. Multiple newlines are modified to a newline
+
+Before:
+
+```
+# test
+
+
+jobs:
+```
+
+After:
+
+```
+# test
+
+jobs:
+```
+
+3. `persistent-credentials: true` isn't fixed
 
 ## LICENSE
 
