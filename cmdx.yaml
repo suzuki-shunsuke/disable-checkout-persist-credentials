@@ -1,0 +1,56 @@
+---
+# the configuration file of cmdx - task runner
+# https://github.com/suzuki-shunsuke/cmdx
+tasks:
+  - name: test
+    short: t
+    description: test
+    usage: test
+    script: go test ./... -race -covermode=atomic
+  - name: vet
+    short: v
+    description: go vet
+    usage: go vet
+    script: go vet ./...
+  - name: lint
+    short: l
+    description: lint the go code
+    usage: lint the go code
+    script: golangci-lint run
+  - name: release
+    short: r
+    description: release the new version
+    usage: release the new version
+    script: |
+      set -eux
+      git tag -m "chore: release {{.version}}" "{{.version}}"
+      git push origin "{{.version}}"
+    args:
+      - name: version
+        required: true
+        validate:
+          - regexp: "^v\\d+\\.\\d+.\\d+(-.+)?$"
+  - name: coverage
+    short: c
+    description: coverage test
+    usage: coverage test
+    script: "bash scripts/coverage.sh {{.target}}"
+    args:
+      - name: target
+  - name: install
+    short: i
+    description: Build and install disable-checkout-persist-credentials
+    usage: Build and install disable-checkout-persist-credentials by "go install" command
+    script: go install ./cmd/disable-checkout-persist-credentials
+  - name: fmt
+    description: Format GO codes
+    usage: Format GO codes
+    script: bash scripts/fmt.sh
+  - name: rm-moved
+    description: Remove moved.tf
+    usage: Remove moved.tf
+    short: rmm
+    script: |
+      set -euo pipefail
+      find example -name moved.tf | xargs rm
+      find example -name moved_blocks.tf | xargs rm
