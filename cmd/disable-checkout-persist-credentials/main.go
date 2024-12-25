@@ -4,9 +4,9 @@ import (
 	"os"
 
 	"github.com/sirupsen/logrus"
-	"github.com/suzuki-shunsuke/logrus-error/logerr"
 	"github.com/suzuki-shunsuke/disable-checkout-persist-credentials/pkg/cli"
 	"github.com/suzuki-shunsuke/disable-checkout-persist-credentials/pkg/log"
+	"github.com/suzuki-shunsuke/logrus-error/logerr"
 )
 
 var (

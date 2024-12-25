@@ -22,8 +22,3 @@ type Input struct {
 	Args   []string
 	DryRun bool
 }
-
-type Dir struct {
-	Path  string
-	Files []string
-}

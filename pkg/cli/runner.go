@@ -21,10 +21,7 @@ files: GitHub Actions files. By default, \.github/workflows/*\.ya?ml$
 
 Options:
 	--help, -h       Show help
-	--version, -v    Show version
-	--dry-run        Dry Run
-	--log-level      Log level
-	--log-color      Log color. "auto", "always", "never" are available`
+	--version, -v    Show version`
 
 type Runner struct {
 	Stdin   io.Reader

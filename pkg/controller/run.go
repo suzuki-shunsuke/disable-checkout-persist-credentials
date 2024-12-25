@@ -61,9 +61,19 @@ func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
 		return nil
 	}
 	logE.Info("change the workflow")
-	_, err = parseWorkflowAST(logE, content, jobNames)
+	newContent, err := parseWorkflowAST(logE, content, jobNames)
 	if err != nil {
 		return err
+	}
+	if newContent == string(content) {
+		return nil
+	}
+	stat, err := c.fs.Stat(file)
+	if err != nil {
+		return fmt.Errorf("get configuration file stat: %w", err)
+	}
+	if err := afero.WriteFile(c.fs, file, []byte(newContent), stat.Mode()); err != nil {
+		return fmt.Errorf("write the configuration file: %w", err)
 	}
 	return nil
 }

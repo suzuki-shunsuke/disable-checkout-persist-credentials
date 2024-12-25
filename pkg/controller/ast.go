@@ -5,48 +5,39 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
 	"github.com/sirupsen/logrus"
 	"github.com/suzuki-shunsuke/logrus-error/logerr"
 )
 
-type Position struct {
-	JobKey string
-	Line   int
-	Column int
-}
+const falseStr = "false"
 
-func parseWorkflowAST(logE *logrus.Entry, content []byte, jobNames map[string]struct{}) ([]*Position, error) {
+func parseWorkflowAST(_ *logrus.Entry, content []byte, jobNames map[string]struct{}) (string, error) {
 	file, err := parser.ParseBytes(content, parser.ParseComments)
 	if err != nil {
-		return nil, fmt.Errorf("parse a workflow file as YAML: %w", err)
+		return "", fmt.Errorf("parse a workflow file as YAML: %w", err)
 	}
-	list := []*Position{}
 	for _, doc := range file.Docs {
-		arr, err := parseDocAST(doc, jobNames)
-		if err != nil {
-			return nil, err
+		if err := parseDocAST(doc, jobNames); err != nil {
+			return "", err
 		}
-		if len(arr) == 0 {
-			continue
-		}
-		list = append(list, arr...)
 	}
-	return list, nil
+	return file.String(), nil
 }
 
-func parseDocAST(doc *ast.DocumentNode, jobNames map[string]struct{}) ([]*Position, error) {
+func parseDocAST(doc *ast.DocumentNode, jobNames map[string]struct{}) error {
 	body, ok := doc.Body.(*ast.MappingNode)
 	if !ok {
-		return nil, errors.New("document body must be *ast.MappingNode")
+		return errors.New("document body must be *ast.MappingNode")
 	}
 	// jobs:
 	//   jobName:
 	//     steps:
 	jobsNode := findJobsNode(body.Values)
 	if jobsNode == nil {
-		return nil, errors.New("the field 'jobs' is required")
+		return errors.New("the field 'jobs' is required")
 	}
 	return parseDocValue(jobsNode, jobNames)
 }
@@ -78,53 +69,46 @@ func getMappingValueNodes(value *ast.MappingValueNode) ([]*ast.MappingValueNode,
 	return nil, errors.New("value must be either a *ast.MappingNode or a *ast.MappingValueNode")
 }
 
-func parseDocValue(value *ast.MappingValueNode, jobNames map[string]struct{}) ([]*Position, error) {
+func parseDocValue(value *ast.MappingValueNode, jobNames map[string]struct{}) error {
 	values, err := getMappingValueNodes(value)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	arr := make([]*Position, 0, len(values))
 	for _, job := range values {
-		pos, err := parseJobAST(job, jobNames)
-		if err != nil {
-			return nil, err
+		if err := parseJobAST(job, jobNames); err != nil {
+			return err
 		}
-		if pos == nil {
-			continue
-		}
-		arr = append(arr, pos)
 	}
-	return arr, nil
+	return nil
 }
 
-func parseJobAST(value *ast.MappingValueNode, jobNames map[string]struct{}) (*Position, error) {
+func parseJobAST(value *ast.MappingValueNode, jobNames map[string]struct{}) error { //nolint:funlen,gocognit,cyclop
 	jobNameNode, ok := value.Key.(*ast.StringNode)
 	if !ok {
-		return nil, errors.New("job name must be a string")
+		return errors.New("job name must be a string")
 	}
 	jobName := jobNameNode.Value
 	if _, ok := jobNames[jobName]; !ok {
-		return nil, nil //nolint:nilnil
+		return nil
 	}
 	fields, err := getMappingValueNodes(value)
 	if err != nil {
-		return nil, logerr.WithFields(err, logrus.Fields{ //nolint:wrapcheck
+		return logerr.WithFields(err, logrus.Fields{ //nolint:wrapcheck
 			"job": jobName,
 		})
 	}
 	if len(fields) == 0 {
-		return nil, logerr.WithFields(errors.New("job doesn't have any field"), logrus.Fields{ //nolint:wrapcheck
+		return logerr.WithFields(errors.New("job doesn't have any field"), logrus.Fields{ //nolint:wrapcheck
 			"job": jobName,
 		})
 	}
-	// get steps field
 	stepsField := findNodeByKey(fields, "steps")
 	if stepsField == nil {
-		return nil, nil
+		return nil
 	}
 	stepSeq, ok := stepsField.Value.(*ast.SequenceNode)
 	if !ok {
-		return nil, logerr.WithFields(errors.New("steps must be a sequence"), logrus.Fields{ //nolint:wrapcheck
+		return logerr.WithFields(errors.New("steps must be a sequence"), logrus.Fields{ //nolint:wrapcheck
 			"job": jobName,
 		})
 	}
@@ -132,7 +116,7 @@ func parseJobAST(value *ast.MappingValueNode, jobNames map[string]struct{}) (*Po
 		// uses: actions/checkout@v2
 		stepM, ok := stepNode.(*ast.MappingNode)
 		if !ok {
-			return nil, logerr.WithFields(errors.New("step must be a mapping"), logrus.Fields{ //nolint:wrapcheck
+			return logerr.WithFields(errors.New("step must be a mapping"), logrus.Fields{ //nolint:wrapcheck
 				"job": jobName,
 			})
 		}
@@ -142,7 +126,7 @@ func parseJobAST(value *ast.MappingValueNode, jobNames map[string]struct{}) (*Po
 		}
 		s, ok := usesNode.Value.(*ast.StringNode)
 		if !ok {
-			return nil, logerr.WithFields(errors.New("uses must be a string"), logrus.Fields{ //nolint:wrapcheck
+			return logerr.WithFields(errors.New("uses must be a string"), logrus.Fields{ //nolint:wrapcheck
 				"job": jobName,
 			})
 		}
@@ -151,36 +135,51 @@ func parseJobAST(value *ast.MappingValueNode, jobNames map[string]struct{}) (*Po
 		}
 		withNode := findNodeByKey(stepM.Values, "with")
 		if withNode == nil {
-			fmt.Println("with is nil")
+			node, err := yaml.ValueToNode(map[string]any{
+				"with": map[string]any{
+					"persist-credentials": false,
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("convert packages to node: %w", err)
+			}
+			stepM.Merge(node.(*ast.MappingNode)) //nolint:forcetypeassert
 			continue
 		}
 		withM, ok := withNode.Value.(*ast.MappingNode)
 		if !ok {
-			return nil, logerr.WithFields(errors.New("with must be a mapping"), logrus.Fields{ //nolint:wrapcheck
+			return logerr.WithFields(errors.New("with must be a mapping"), logrus.Fields{ //nolint:wrapcheck
 				"job": jobName,
 			})
 		}
 		pc := findNodeByKey(withM.Values, "persist-credentials")
 		if pc == nil {
-			fmt.Println("persist-credentials is nil")
+			node, err := yaml.ValueToNode(map[string]any{
+				"persist-credentials": false,
+			})
+			if err != nil {
+				return fmt.Errorf("convert packages to node: %w", err)
+			}
+			withM.Merge(node.(*ast.MappingNode)) //nolint:forcetypeassert
 			continue
 		}
 		switch v := pc.Value.(type) {
 		case *ast.BoolNode:
 			if v.Value {
-				fmt.Println("persist-credentials is true")
+				// TODO: Known issue: This doesn't work well.
+				v.Value = false
 				continue
 			}
 		case *ast.StringNode:
-			if v.Value != "false" {
-				fmt.Println("persist-credentials isn't false")
+			if v.Value != falseStr {
+				v.Value = falseStr
 				continue
 			}
 		default:
-			return nil, logerr.WithFields(errors.New("persist-credentials must be a string or boolean"), logrus.Fields{ //nolint:wrapcheck
+			return logerr.WithFields(errors.New("persist-credentials must be a string or boolean"), logrus.Fields{ //nolint:wrapcheck
 				"job": jobName,
 			})
 		}
 	}
-	return nil, nil
+	return nil
 }
