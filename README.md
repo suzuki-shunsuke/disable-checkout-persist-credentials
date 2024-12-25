@@ -22,6 +22,18 @@ Then `persist-credentials: false` is patched.
            go-version-file: go.mod
 ```
 
+You can also specify file paths:
+
+```sh
+disable-checkout-persist-credentials .github/workflows/test.yaml .github/workflows/release.yaml
+```
+
+This tool supports composite actions too.
+
+```sh
+disable-checkout-persist-credentials action.yaml
+```
+
 ## Why?
 
 - https://github.com/suzuki-shunsuke/ghalint/blob/main/docs/policies/013.md

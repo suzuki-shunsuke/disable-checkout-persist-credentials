@@ -31,5 +31,6 @@ jobs:
       - run: disable-checkout-persist-credentials --help
       - run: disable-checkout-persist-credentials
       - run: git diff --quiet
-      - run: disable-checkout-persist-credentials test/test.yaml
+      - run: disable-checkout-persist-credentials test/test.yaml test/action.yaml
       - run: diff test/test.yaml test/test.yaml.expected
+      - run: diff test/action.yaml test/action.yaml.expected
