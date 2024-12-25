@@ -40,21 +40,8 @@ aqua g -i suzuki-shunsuke/disable-checkout-persist-credentials
 ## Build an executable binary from source code yourself using Go
 
 ```sh
-git clone https://github.com/suzuki-shunsuke/disable-checkout-persist-credentials
-cd disable-checkout-persist-credentials
-go install ./cmd/disable-checkout-persist-credentials
+go install github.com/suzuki-shunsuke/disable-checkout-persist-credentials/cmd/disable-checkout-persist-credentials@latest
 ```
-
-> [!WARNING]
-> Unfortunately, `go install github.com/suzuki-shunsuke/disable-checkout-persist-credentials/cmd/disable-checkout-persist-credentials@latest` doesn't work because disable-checkout-persist-credentials uses a replace directive in go.mod.
-> 
-> ```console
-> $ go install github.com/suzuki-shunsuke/disable-checkout-persist-credentials/cmd/disable-checkout-persist-credentials@latest
-> go: github.com/suzuki-shunsuke/disable-checkout-persist-credentials/cmd/disable-checkout-persist-credentials@latest (in github.com/suzuki-shunsuke/disable-checkout-persist-credentials@v0.1.0):
-> 	The go.mod file for the module providing named packages contains one or
-> 	more replace directives. It must not contain directives that would cause
-> 	it to be interpreted differently than if it were the main module.
-> ```
 
 ## GitHub Releases
 
