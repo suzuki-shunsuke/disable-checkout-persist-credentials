@@ -202,6 +202,7 @@ func handleStepsAST(stepsField *ast.MappingValueNode) error { //nolint:funlen,cy
 		case *ast.BoolNode:
 			if v.Value {
 				// TODO: Known issue: This doesn't work well.
+				v.Token.Value = "false"
 				v.Value = false
 				continue
 			}
