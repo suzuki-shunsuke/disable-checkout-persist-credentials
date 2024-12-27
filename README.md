@@ -83,8 +83,6 @@ After:
 jobs:
 ```
 
-3. `persistent-credentials: true` isn't fixed
-
 ## LICENSE
 
 [MIT](LICENSE)
