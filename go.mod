@@ -3,7 +3,7 @@ module github.com/suzuki-shunsuke/disable-checkout-persist-credentials
 go 1.23.4
 
 require (
-	github.com/goccy/go-yaml v1.15.15
+	github.com/goccy/go-yaml v1.15.16
 	github.com/mattn/go-colorable v0.1.14
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.12.0
