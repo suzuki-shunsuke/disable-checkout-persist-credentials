@@ -68,4 +68,3 @@ body:
       label: Note
     validations:
       required: false
-
