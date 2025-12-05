@@ -1,12 +1,12 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/suzuki-shunsuke/disable-checkout-persist-credentials/pkg/cli"
-	"github.com/suzuki-shunsuke/disable-checkout-persist-credentials/pkg/log"
-	"github.com/suzuki-shunsuke/logrus-error/logerr"
+	"github.com/suzuki-shunsuke/slog-error/slogerr"
+	"github.com/suzuki-shunsuke/slog-util/slogutil"
 )
 
 var (
@@ -16,13 +16,19 @@ var (
 )
 
 func main() {
-	logE := log.New(version)
-	if err := core(logE); err != nil {
-		logerr.WithError(logE, err).Fatal("disable-checkout-persist-credentials failed")
+	if code := core(); code != 0 {
+		os.Exit(code)
 	}
 }
 
-func core(logE *logrus.Entry) error {
+func core() int {
+	logLevelVar := &slog.LevelVar{}
+	logger := slogutil.New(&slogutil.InputNew{
+		Name:    "disable-checkout-persist-credentials",
+		Version: version,
+		Out:     os.Stderr,
+		Level:   logLevelVar,
+	})
 	runner := cli.Runner{
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
@@ -32,7 +38,12 @@ func core(logE *logrus.Entry) error {
 			Commit:  commit,
 			Date:    date,
 		},
-		LogE: logE,
+		Logger:      logger,
+		LogLevelVar: logLevelVar,
 	}
-	return runner.Run() //nolint:wrapcheck
+	if err := runner.Run(); err != nil {
+		slogerr.WithError(logger, err).Error("disable-checkout-persist-credentials failed")
+		return 1
+	}
+	return 0
 }

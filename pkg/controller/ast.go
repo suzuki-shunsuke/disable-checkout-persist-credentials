@@ -8,13 +8,12 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
-	"github.com/sirupsen/logrus"
-	"github.com/suzuki-shunsuke/logrus-error/logerr"
+	"github.com/suzuki-shunsuke/slog-error/slogerr"
 )
 
 const falseStr = "false"
 
-func parseWorkflowAST(_ *logrus.Entry, content []byte, jobNames map[string]struct{}) (string, error) {
+func parseWorkflowAST(content []byte, jobNames map[string]struct{}) (string, error) {
 	file, err := parser.ParseBytes(content, parser.ParseComments)
 	if err != nil {
 		return "", fmt.Errorf("parse a workflow file as YAML: %w", err)
@@ -27,7 +26,7 @@ func parseWorkflowAST(_ *logrus.Entry, content []byte, jobNames map[string]struc
 	return file.String(), nil
 }
 
-func parseActionAST(_ *logrus.Entry, content []byte) (string, error) {
+func parseActionAST(content []byte) (string, error) {
 	file, err := parser.ParseBytes(content, parser.ParseComments)
 	if err != nil {
 		return "", fmt.Errorf("parse a workflow file as YAML: %w", err)
@@ -55,16 +54,13 @@ func parseDocAST(doc *ast.DocumentNode, jobNames map[string]struct{}) error {
 	return parseDocValue(jobsNode, jobNames)
 }
 
-/*
-runs:
-  steps:
-*/
-
 func parseActionDocAST(doc *ast.DocumentNode) error {
 	body, ok := doc.Body.(*ast.MappingNode)
 	if !ok {
 		return errors.New("document body must be *ast.MappingNode")
 	}
+	// runs:
+	//   steps:
 	runsNode := findNodeByKey(body.Values, "runs")
 	if runsNode == nil {
 		return errors.New("the field 'runs' is required")
@@ -127,23 +123,17 @@ func parseJobAST(value *ast.MappingValueNode, jobNames map[string]struct{}) erro
 	}
 	fields, err := getMappingValueNodes(value)
 	if err != nil {
-		return logerr.WithFields(err, logrus.Fields{ //nolint:wrapcheck
-			"job": jobName,
-		})
+		return slogerr.With(err, "job", jobName) //nolint:wrapcheck
 	}
 	if len(fields) == 0 {
-		return logerr.WithFields(errors.New("job doesn't have any field"), logrus.Fields{ //nolint:wrapcheck
-			"job": jobName,
-		})
+		return slogerr.With(errors.New("job doesn't have any field"), "job", jobName) //nolint:wrapcheck
 	}
 	stepsField := findNodeByKey(fields, "steps")
 	if stepsField == nil {
 		return nil
 	}
 	if err := handleStepsAST(stepsField); err != nil {
-		return logerr.WithFields(err, logrus.Fields{ //nolint:wrapcheck
-			"job": jobName,
-		})
+		return slogerr.With(err, "job", jobName) //nolint:wrapcheck
 	}
 	return nil
 }

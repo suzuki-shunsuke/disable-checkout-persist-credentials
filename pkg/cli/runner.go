@@ -3,12 +3,12 @@ package cli
 import (
 	"fmt"
 	"io"
+	"log/slog"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	flag "github.com/spf13/pflag"
 	"github.com/suzuki-shunsuke/disable-checkout-persist-credentials/pkg/controller"
-	"github.com/suzuki-shunsuke/disable-checkout-persist-credentials/pkg/log"
+	"github.com/suzuki-shunsuke/slog-util/slogutil"
 )
 
 const help = `disable-checkout-persist-credentials - Disable actions/checkout persist-credentials.
@@ -24,11 +24,12 @@ Options:
 	--version, -v    Show version`
 
 type Runner struct {
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
-	LDFlags *LDFlags
-	LogE    *logrus.Entry
+	Stdin       io.Reader
+	Stdout      io.Writer
+	Stderr      io.Writer
+	LDFlags     *LDFlags
+	Logger      *slog.Logger
+	LogLevelVar *slog.LevelVar
 }
 
 type LDFlags struct {
@@ -48,12 +49,13 @@ func (r *Runner) Run() error {
 		fmt.Fprintln(r.Stdout, help)
 		return nil
 	}
-	log.SetColor(flg.LogColor, r.LogE)
-	log.SetLevel(flg.LogLevel, r.LogE)
+	if err := slogutil.SetLevel(r.LogLevelVar, flg.LogLevel); err != nil {
+		return fmt.Errorf("set log level: %w", err)
+	}
 
 	ctrl := &controller.Controller{}
 	ctrl.Init(afero.NewOsFs(), r.Stdout, r.Stderr)
-	return ctrl.Run(r.LogE, &controller.Input{ //nolint:wrapcheck
+	return ctrl.Run(r.Logger, &controller.Input{ //nolint:wrapcheck
 		DryRun: flg.DryRun,
 		Args:   flg.Args,
 	})
@@ -61,7 +63,6 @@ func (r *Runner) Run() error {
 
 type Flag struct {
 	LogLevel string
-	LogColor string
 	Args     []string
 	Help     bool
 	Version  bool
@@ -70,7 +71,6 @@ type Flag struct {
 
 func parseFlags(f *Flag) {
 	flag.StringVar(&f.LogLevel, "log-level", "info", "The log level")
-	flag.StringVar(&f.LogColor, "log-color", "auto", "The log color")
 	flag.BoolVarP(&f.Help, "help", "h", false, "Show help")
 	flag.BoolVarP(&f.Version, "version", "v", false, "Show version")
 	flag.BoolVar(&f.DryRun, "dry-run", false, "Dry Run")

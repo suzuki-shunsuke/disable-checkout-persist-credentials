@@ -2,15 +2,15 @@ package controller
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
 )
 
-func (c *Controller) Run(logE *logrus.Entry, input *Input) error {
+func (c *Controller) Run(logger *slog.Logger, input *Input) error {
 	// Read workflow and action files
 	// Parse files and detect actions/checkout steps which persist-credentials is not set or true
 	// job and step index
@@ -34,8 +34,8 @@ func (c *Controller) Run(logE *logrus.Entry, input *Input) error {
 		}
 	}
 	for _, file := range files {
-		logE := logE.WithField("file", file)
-		if err := c.handleWorkflow(logE, file); err != nil {
+		logger := logger.With("file", file)
+		if err := c.handleWorkflow(logger, file); err != nil {
 			return fmt.Errorf("handle a workflow file: %w", err)
 		}
 	}
@@ -54,7 +54,7 @@ func (c *Controller) findWorkflowFiles() ([]string, error) {
 	return files, nil
 }
 
-func (c *Controller) handleAction(logE *logrus.Entry, file string, content []byte, wf *Workflow) error {
+func (c *Controller) handleAction(logger *slog.Logger, file string, content []byte, wf *Workflow) error {
 	f, err := wf.Runs.Validate()
 	if err != nil {
 		return err
@@ -62,8 +62,8 @@ func (c *Controller) handleAction(logE *logrus.Entry, file string, content []byt
 	if f {
 		return nil
 	}
-	logE.Info("change the composite action")
-	newContent, err := parseActionAST(logE, content)
+	logger.Info("change the composite action")
+	newContent, err := parseActionAST(content)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (c *Controller) handleAction(logE *logrus.Entry, file string, content []byt
 	return c.edit(file, newContent)
 }
 
-func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
+func (c *Controller) handleWorkflow(logger *slog.Logger, file string) error {
 	content, err := afero.ReadFile(c.fs, file)
 	if err != nil {
 		return fmt.Errorf("read a file: %w", err)
@@ -84,7 +84,7 @@ func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
 		return fmt.Errorf("unmarshal a workflow file: %w", err)
 	}
 	if wf.Runs != nil {
-		return c.handleAction(logE, file, content, wf)
+		return c.handleAction(logger, file, content, wf)
 	}
 	jobNames, err := wf.Validate()
 	if err != nil {
@@ -93,8 +93,8 @@ func (c *Controller) handleWorkflow(logE *logrus.Entry, file string) error {
 	if wf.Runs == nil && len(jobNames) == 0 {
 		return nil
 	}
-	logE.Info("change the workflow")
-	newContent, err := parseWorkflowAST(logE, content, jobNames)
+	logger.Info("change the workflow")
+	newContent, err := parseWorkflowAST(content, jobNames)
 	if err != nil {
 		return err
 	}
