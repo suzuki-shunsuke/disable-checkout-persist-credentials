@@ -54,16 +54,13 @@ func parseDocAST(doc *ast.DocumentNode, jobNames map[string]struct{}) error {
 	return parseDocValue(jobsNode, jobNames)
 }
 
-/*
-runs:
-
-	steps:
-*/
 func parseActionDocAST(doc *ast.DocumentNode) error {
 	body, ok := doc.Body.(*ast.MappingNode)
 	if !ok {
 		return errors.New("document body must be *ast.MappingNode")
 	}
+	// runs:
+	//   steps:
 	runsNode := findNodeByKey(body.Values, "runs")
 	if runsNode == nil {
 		return errors.New("the field 'runs' is required")
