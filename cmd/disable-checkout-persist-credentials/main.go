@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log/slog"
 	"os"
 
 	"github.com/suzuki-shunsuke/disable-checkout-persist-credentials/pkg/cli"
@@ -9,11 +8,7 @@ import (
 	"github.com/suzuki-shunsuke/slog-util/slogutil"
 )
 
-var (
-	version = ""
-	commit  = "" //nolint:gochecknoglobals
-	date    = "" //nolint:gochecknoglobals
-)
+var version = ""
 
 func main() {
 	if code := core(); code != 0 {
@@ -22,12 +17,9 @@ func main() {
 }
 
 func core() int {
-	logLevelVar := &slog.LevelVar{}
 	logger := slogutil.New(&slogutil.InputNew{
 		Name:    "disable-checkout-persist-credentials",
 		Version: version,
-		Out:     os.Stderr,
-		Level:   logLevelVar,
 	})
 	runner := cli.Runner{
 		Stdin:  os.Stdin,
@@ -35,14 +27,11 @@ func core() int {
 		Stderr: os.Stderr,
 		LDFlags: &cli.LDFlags{
 			Version: version,
-			Commit:  commit,
-			Date:    date,
 		},
-		Logger:      logger,
-		LogLevelVar: logLevelVar,
+		Logger: logger,
 	}
-	if err := runner.Run(); err != nil {
-		slogerr.WithError(logger, err).Error("disable-checkout-persist-credentials failed")
+	if err := runner.Run(logger); err != nil {
+		slogerr.WithError(logger.Logger, err).Error("disable-checkout-persist-credentials failed")
 		return 1
 	}
 	return 0
