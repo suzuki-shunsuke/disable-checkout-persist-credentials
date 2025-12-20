@@ -3,7 +3,7 @@ module github.com/suzuki-shunsuke/disable-checkout-persist-credentials
 go 1.24.5
 
 require (
-	github.com/goccy/go-yaml v1.19.0
+	github.com/goccy/go-yaml v1.19.1
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/pflag v1.0.10
 	github.com/suzuki-shunsuke/slog-error v0.2.1
