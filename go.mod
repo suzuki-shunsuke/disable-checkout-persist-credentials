@@ -1,6 +1,6 @@
 module github.com/suzuki-shunsuke/disable-checkout-persist-credentials
 
-go 1.24.5
+go 1.27.3
 
 require (
 	github.com/goccy/go-yaml v1.19.2
